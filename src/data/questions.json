@@ -1,0 +1,433 @@
+[
+  {
+    "id": "graphics-001",
+    "category": "图形学基础",
+    "title": "简述现代 GPU 实时渲染管线的流程",
+    "difficulty": "基础",
+    "shortAnswer": "应用阶段提交渲染命令后，GPU 依次执行顶点处理（顶点变换、蒙皮、逐顶点光照）、几何处理、光栅化（生成片元并插值）、片元着色（逐像素光照与纹理采样），最后经过深度测试与颜色混合写入帧缓冲。",
+    "keyPoints": [
+      "顶点着色器",
+      "光栅化与插值",
+      "片元着色器",
+      "深度测试与混合",
+      "GPU 是并行流水线"
+    ],
+    "explanation": "CPU 负责应用阶段：剔除、排序、组织渲染命令并提交 Draw Call。GPU 流水线各阶段高度并行，瓶颈通常出现在最慢的阶段。现代 GPU 以固定功能单元（光栅化、深度测试）配合可编程阶段（顶点/片元/计算着色器）工作；理解流水线有助于判断性能瓶颈在顶点端还是片元端。",
+    "followUps": [
+      "顶点数多和像素多的场景，瓶颈分别在哪一端？",
+      "Compute Shader 在管线中的位置和作用是什么？"
+    ],
+    "relatedProjects": [
+      "自定义渲染管线或后处理效果开发"
+    ],
+    "tags": ["渲染管线", "GPU", "基础"],
+    "sources": ["《Real-Time Rendering》第 4 版", "Unity 官方手册：Graphics Pipeline"]
+  },
+  {
+    "id": "graphics-002",
+    "category": "图形学基础",
+    "title": "什么是伽马校正？为什么需要它？",
+    "difficulty": "基础",
+    "shortAnswer": "显示器输出的亮度与输入信号呈非线性关系（约 2.2 次幂）。在物理正确的线性空间中计算光照后，直接输出到屏幕会偏暗，需要做一次逆变换（伽马校正，约 1/2.2 次幂）再输出。",
+    "keyPoints": [
+      "显示器伽马约 2.2",
+      "线性空间计算光照",
+      "输出前做伽马校正",
+      "sRGB 纹理需要解码为线性"
+    ],
+    "explanation": "人眼对暗部更敏感，因此图像文件通常按感知均匀的 sRGB 编码存储。若把 sRGB 纹理直接当作线性值参与光照计算，结果会与物理不符，常见表现是暗部与边缘偏暗。正确流程：sRGB 纹理采样后解码为线性 → 在线性空间计算光照 → 输出前编码回 sRGB。",
+    "followUps": [
+      "为什么要用线性空间渲染？",
+      "sRGB 纹理在着色器中需要额外处理吗？"
+    ],
+    "relatedProjects": [
+      "任何带光照的 Shader 项目"
+    ],
+    "tags": ["色彩管理", "sRGB", "线性空间"],
+    "sources": ["《Real-Time Rendering》第 4 版", "Unity 官方手册：Linear Rendering"]
+  },
+  {
+    "id": "shader-001",
+    "category": "Shader 与渲染",
+    "title": "什么是 PBR？基于物理渲染的要素有哪些？",
+    "difficulty": "中等",
+    "shortAnswer": "PBR 是一套基于物理规律的光照模型：BRDF 由漫反射项（Lambert）与微表面高光项（GGX 等）组成，满足能量守恒与菲涅尔效应，配合金属度、粗糙度、法线等输入，在不同光照环境下表现一致。",
+    "keyPoints": [
+      "微表面模型",
+      "能量守恒",
+      "菲涅尔效应",
+      "金属度-粗糙度工作流",
+      "IBL（图像光照）"
+    ],
+    "explanation": "相比传统 Blinn-Phong，PBR 用少量语义明确的参数描述材质，美术可在不同项目间复用材质库，且外观在任意光照下保持一致。核心是 Cook-Torrance BRDF：漫反射项加高光项，高光项由法线分布函数（NDF）、几何遮蔽函数与菲涅尔函数组成。IBL 用环境贴图预滤波实现间接光照。",
+    "followUps": [
+      "金属度与粗糙度的物理含义是什么？",
+      "IBL 中的预滤波环境贴图如何生成？"
+    ],
+    "relatedProjects": [
+      "URP 中基于 PBR 的自定义材质"
+    ],
+    "tags": ["PBR", "BRDF", "着色"],
+    "sources": ["《Unity Shader 入门精要》", "LearnOpenGL：PBR 章节", "《Real-Time Rendering》第 4 版"]
+  },
+  {
+    "id": "shader-002",
+    "category": "Shader 与渲染",
+    "title": "前向渲染与延迟渲染的区别和取舍",
+    "difficulty": "中等",
+    "shortAnswer": "前向渲染对每个物体逐光源计算光照，实现简单、MSAA 友好，但光源增多时开销线性增长；延迟渲染先把几何与材质信息写入 G-Buffer，再在屏幕空间统一计算光照，可支持大量光源，代价是显存带宽高、难以做 MSAA、透明物体需单独处理。",
+    "keyPoints": [
+      "G-Buffer",
+      "带宽开销",
+      "光源数量",
+      "MSAA 与透明物体",
+      "混合渲染路径"
+    ],
+    "explanation": "前向渲染的复杂度是 O(物体 × 光源)，适合光源少、注重抗锯齿的场景；延迟渲染把光照成本与场景复杂度解耦，复杂度近似 O(屏幕像素 × 光源数 × G-Buffer 采样)，适合多光源大场景。移动端常因带宽受限而选择前向，或使用延迟 + TAA 的组合。",
+    "followUps": [
+      "URP 中如何配置前向/延迟路径？",
+      "延迟渲染下如何实现透明物体和 MSAA？"
+    ],
+    "relatedProjects": [
+      "URP 渲染路径配置实验"
+    ],
+    "tags": ["渲染路径", "G-Buffer", "URP"],
+    "sources": ["Unity 官方手册：Forward/Deferred", "《Real-Time Rendering》第 4 版"]
+  },
+  {
+    "id": "unity-001",
+    "category": "Unity",
+    "title": "MonoBehaviour 的常用生命周期回调顺序",
+    "difficulty": "基础",
+    "shortAnswer": "Awake → OnEnable → Start → FixedUpdate → Update → LateUpdate → OnDisable → OnDestroy。物理计算放在 FixedUpdate，相机跟随等需要最后执行的逻辑放在 LateUpdate。",
+    "keyPoints": [
+      "Awake 只调用一次，先于 Start",
+      "OnEnable 每次启用时调用",
+      "FixedUpdate 固定时间步，适合物理",
+      "Update 每帧调用",
+      "LateUpdate 在 Update 之后"
+    ],
+    "explanation": "Awake 用于初始化自身状态，在对象创建时立即执行，即使脚本未启用也会调用；Start 在对象启用且第一帧 Update 之前调用，适合引用其他对象。OnEnable/OnDisable 成对出现，常用于事件注册与注销，避免失效对象仍响应事件。",
+    "followUps": [
+      "Awake 和 Start 的区别是什么？",
+      "为什么事件注册放在 OnEnable 而不是 Awake？"
+    ],
+    "relatedProjects": [
+      "任何 Unity 脚本项目"
+    ],
+    "tags": ["Unity", "生命周期", "基础"],
+    "sources": ["Unity 官方手册：MonoBehaviour"]
+  },
+  {
+    "id": "unity-002",
+    "category": "Unity",
+    "title": "UGUI 的 Canvas 网格重建（Rebuild）机制是什么？",
+    "difficulty": "中等",
+    "shortAnswer": "Canvas 下的 UI 元素在属性变化时会被标记为脏，渲染前 Canvas 统一收集脏标记：布局阶段重新计算 RectTransform，图形阶段重新生成顶点网格并提交给 GPU。频繁改变文本、颜色等属性会导致每帧重建，性能下降。",
+    "keyPoints": [
+      "脏标记机制",
+      "布局重建（Layout）",
+      "图形重建（Mesh）",
+      "动静分离：静态与动态 UI 分 Canvas",
+      "避免频繁修改 UI 属性"
+    ],
+    "explanation": "UGUI 以 Canvas 为单位合批提交网格。任何 UI 元素尺寸、位置、文本或颜色变化都会触发所在 Canvas 的局部重建，重建会重新执行布局计算与顶点生成。优化手段：静态 UI 与动态 UI 分离到不同 Canvas、使用图集合并纹理、批量修改属性后再刷新、减少文本每帧更新。",
+    "followUps": [
+      "如何定位哪部分 UI 在每帧重建？",
+      "为什么打图集可以减少 Draw Call？"
+    ],
+    "relatedProjects": [
+      "HUD 性能优化"
+    ],
+    "tags": ["UGUI", "Canvas", "UI"],
+    "sources": ["Unity 官方手册：Canvas", "Unity 官方博客：UGUI 性能"]
+  },
+  {
+    "id": "perf-001",
+    "category": "性能优化",
+    "title": "什么是 Draw Call？如何减少它？",
+    "difficulty": "基础",
+    "shortAnswer": "Draw Call 是 CPU 向 GPU 提交一次绘制指令的开销，数量过多时 CPU 成为瓶颈。减少手段：静态合批、动态合批、GPU Instancing、合并网格、减少材质切换、SRP Batcher。",
+    "keyPoints": [
+      "CPU-GPU 提交开销",
+      "静态合批",
+      "动态合批",
+      "GPU Instancing",
+      "SRP Batcher"
+    ],
+    "explanation": "每次绘制调用需要 CPU 准备状态与缓冲区并通知驱动，驱动切换渲染状态（材质、网格）的开销远大于绘制本身。合批本质是让多个物体共用一次状态切换。动态合批要求顶点数少且共享材质，GPU Instancing 适合大量相同网格的实例（如粒子、植被），SRP Batcher 在 SRP 下复用材质属性缓冲，显著降低 CPU 侧开销。",
+    "followUps": [
+      "动态合批的局限是什么？",
+      "SRP Batcher 的原理是什么？"
+    ],
+    "relatedProjects": [
+      "大场景性能优化"
+    ],
+    "tags": ["性能", "Draw Call", "合批"],
+    "sources": ["Unity 官方手册：Draw Call", "Unity 官方手册：GPU Instancing"]
+  },
+  {
+    "id": "perf-002",
+    "category": "性能优化",
+    "title": "如何定位并优化 GPU 端带宽瓶颈？",
+    "difficulty": "中等",
+    "shortAnswer": "先测量：用 Profiler 看 GPU 时间、带宽与填充率指标；再针对性优化：纹理压缩（ASTC/BC）、降低纹理分辨率、减少 Overdraw（半透明叠加）、减少 G-Buffer 渲染目标数量、精简后处理链。",
+    "keyPoints": [
+      "先测量再优化",
+      "纹理压缩（ASTC/BC）",
+      "Overdraw 控制",
+      "G-Buffer 数量",
+      "移动端带宽尤其珍贵"
+    ],
+    "explanation": "移动端显存与内存共享带宽，带宽瓶颈常表现为 GPU 时间异常高而计算量并不大。主要消耗来自纹理采样与帧缓冲读写：全屏分辨率 × 渲染目标数 × 后处理次数就是每帧内存流量。优化优先级：压缩纹理、减少全屏 Pass、降低后处理分辨率、用半精度与像素裁剪减少写入量。",
+    "followUps": [
+      "ASTC 与 BC 格式的区别是什么？",
+      "如何用 Profiler 实测带宽占用？"
+    ],
+    "relatedProjects": [
+      "移动端后处理性能调优"
+    ],
+    "tags": ["性能", "带宽", "移动端"],
+    "sources": ["Unity 官方手册：Optimizing graphics performance", "ARM：Mali GPU Best Practices"]
+  },
+  {
+    "id": "math-001",
+    "category": "数学与编程",
+    "title": "为什么旋转优先使用四元数而不是欧拉角？",
+    "difficulty": "中等",
+    "shortAnswer": "四元数用四个分量表示旋转，不存在万向锁问题，插值平滑（slerp），相比矩阵存储更省；欧拉角直观但存在万向锁与插值不平滑的问题。",
+    "keyPoints": [
+      "无万向锁",
+      "球面插值 slerp",
+      "单位四元数",
+      "存储与运算开销低于矩阵",
+      "欧拉角的局限"
+    ],
+    "explanation": "欧拉角在俯仰角接近 ±90° 时，偏航与翻滚轴重合，丢失一个自由度，产生万向锁，导致插值出现不可预期的翻转。四元数在四维单位球面上连续变化，插值自然平滑。注意：四元数存在双覆盖（q 与 -q 表示同一旋转），合成时需归一化。",
+    "followUps": [
+      "q 与 -q 为什么表示同一个旋转？",
+      "四元数与矩阵如何互相转换？"
+    ],
+    "relatedProjects": [
+      "摄像机旋转控制"
+    ],
+    "tags": ["数学", "四元数", "旋转"],
+    "sources": ["《3D 数学基础：图形与游戏开发》", "《Real-Time Rendering》第 4 版"]
+  },
+  {
+    "id": "math-002",
+    "category": "数学与编程",
+    "title": "点积和叉积在渲染中有哪些常见应用？",
+    "difficulty": "基础",
+    "shortAnswer": "点积得到夹角余弦：用于漫反射光照（N·L）、判断物体前后朝向、投影计算；叉积得到垂直于两向量的法向量：用于求面法线、构建切线空间坐标系，叉积大小等于平行四边形面积。",
+    "keyPoints": [
+      "N·L 漫反射光照",
+      "点积判断朝向",
+      "叉积求法线",
+      "构建正交坐标系",
+      "右手定则"
+    ],
+    "explanation": "点积与余弦直接相关，避免求角度本身的开销，是最常用运算；叉积方向遵循右手定则，在左手坐标系下方向取反。切线空间（TBN）就是利用两次叉积构建的正交基，法线贴图采样后需转换到世界空间。",
+    "followUps": [
+      "如何用叉积判断点在三角形内外？",
+      "左手坐标系与右手坐标系的差异？"
+    ],
+    "relatedProjects": [
+      "法线贴图 Shader 实现"
+    ],
+    "tags": ["数学", "向量"],
+    "sources": ["《3D 数学基础：图形与游戏开发》", "LearnOpenGL：Transformations"]
+  },
+  {
+    "id": "portfolio-001",
+    "category": "作品集追问",
+    "title": "介绍你作品集里最复杂的一个效果及其实现难点",
+    "difficulty": "中等",
+    "shortAnswer": "示例：程序化水面。Gerstner 波在 GPU 上并行位移顶点，片元阶段做反射/折射采样，用菲涅尔混合，并用屏幕空间反射与深度修正解决轮廓接缝；性能上用 LOD 与降采样后处理控制开销。",
+    "keyPoints": [
+      "背景与目标",
+      "技术方案与选型理由",
+      "遇到的难点与解决过程",
+      "性能数据",
+      "反思与改进"
+    ],
+    "explanation": "追问类问题考察的是表达与复盘能力，而非炫技。推荐用『背景-方案-难点-数据-反思』的结构回答：先说效果目标，再讲为什么选这个技术方案，重点讲卡住的地方和如何解决，用具体数字支撑性能结论，最后主动提一个可以做得更好的点。",
+    "followUps": [
+      "如果让你重做，你会改哪里？",
+      "水面的性能瓶颈具体在哪？"
+    ],
+    "relatedProjects": [
+      "程序化水面（个人项目示例）"
+    ],
+    "tags": ["作品集", "面试技巧"],
+    "sources": ["个人作品集自述（示例）"]
+  },
+  {
+    "id": "portfolio-002",
+    "category": "作品集追问",
+    "title": "作品里的效果在低端机跑不动，你会怎么优化？",
+    "difficulty": "中等",
+    "shortAnswer": "先定位瓶颈：用 Profiler 区分 CPU/GPU 时间与带宽占用；再按性价比优化：降低分辨率与后处理链、压缩纹理、减少粒子与动态光源、合批与遮挡剔除，并建立分级质量设置。",
+    "keyPoints": [
+      "先测量再优化",
+      "分级质量设置",
+      "资源预算表",
+      "平台特性差异",
+      "动态分辨率"
+    ],
+    "explanation": "回答展示工程化思维：第一步一定是测量，凭感觉优化的方向往往错误；第二步按『收益/成本』排序优化项；第三步建立可持续机制——质量分级、纹理与粒子预算表，让方案能适配多档设备而不是一次性特调。",
+    "followUps": [
+      "为什么一定要先测量？",
+      "质量分级之间如何切换？"
+    ],
+    "relatedProjects": [
+      "移动端适配（个人项目示例）"
+    ],
+    "tags": ["作品集", "优化"],
+    "sources": ["个人作品集自述（示例）"]
+  },
+  {
+    "id": "scene-001",
+    "category": "综合场景题",
+    "title": "如何为一个开放世界设计 LOD 与流式加载方案？",
+    "difficulty": "困难",
+    "shortAnswer": "场景按四叉树/八叉树空间划分，距离决定 LOD 级别与贴图分辨率；地形与场景物体分块流式加载，配合 HLOD 合并远景、遮挡剔除与加载优先级队列控制内存和绘制开销。",
+    "keyPoints": [
+      "空间划分（四叉树/八叉树）",
+      "HLOD 合并远景",
+      "分块流式加载",
+      "加载优先级队列",
+      "遮挡剔除与视锥剔除"
+    ],
+    "explanation": "大世界不能整图进显存：以区块为单位管理网格、贴图与实体，根据与玩家距离和可见性动态加载/卸载；HLOD 把远景多个物体合并成少量网格减少 Draw Call；纹理流送（Texture Streaming）按需加载高分辨率 Mip。回答时给出加载优先级规则（视野内 > 行进方向 > 后台）与内存预算即可体现工程能力。",
+    "followUps": [
+      "HLOD 与普通 LOD 的区别？",
+      "加载冲突（频繁进出边界）如何避免抖动？"
+    ],
+    "relatedProjects": [
+      "开放世界 Demo 场景"
+    ],
+    "tags": ["大世界", "LOD", "流式加载"],
+    "sources": ["《Real-Time Rendering》第 4 版", "Unreal 官方文档：HLOD"]
+  },
+  {
+    "id": "scene-002",
+    "category": "综合场景题",
+    "title": "美术想要的画面效果超出性能预算时，你怎么处理？",
+    "difficulty": "中等",
+    "shortAnswer": "先对齐目标与优先级，用数据沟通：给出 Profiler 数据、参考项目与 A/B 对比结果；再提供可落地的折中方案，如分级质量、可调参数、区域降级，并推动需求沉淀为文档。",
+    "keyPoints": [
+      "先对齐目标与优先级",
+      "用数据而非感觉沟通",
+      "A/B 对比验证",
+      "折中方案：分级与参数化",
+      "流程沉淀"
+    ],
+    "explanation": "技术美术的核心价值之一是弥合美术诉求与性能约束。回答体现三个层次：沟通层面——把『想要的效果』拆成可量化的指标（帧率、分辨率、内存）；技术层面——给出低成本替代（LUT、预烘焙、屏幕空间效果）；流程层面——把约束写进规范，避免每次都从零博弈。",
+    "followUps": [
+      "如果预算确实不够，你会砍掉什么？",
+      "如何防止需求蔓延？"
+    ],
+    "relatedProjects": [
+      "团队协作中的性能评审"
+    ],
+    "tags": ["协作", "场景题"],
+    "sources": ["个人经验（示例）"]
+  },
+  {
+    "id": "graphics-003",
+    "category": "图形学基础",
+    "title": "深度缓冲与深度测试的工作原理是什么？",
+    "difficulty": "基础",
+    "shortAnswer": "渲染前深度缓冲初始化为最远值，每个片元与缓冲中的深度比较，更近的通过并写入；深度测试保证每个像素最终只保留可见表面。透明物体因混合需要单独按从远到近排序。",
+    "keyPoints": [
+      "深度缓冲初始化为最远值",
+      "片元通过深度测试才写入",
+      "Early-Z 提前剔除",
+      "Z-fighting 与精度",
+      "透明物体排序"
+    ],
+    "explanation": "深度缓冲记录每个像素当前最近的深度，深度测试把片元深度与缓冲比较，小于（更近）才通过并写入。现代 GPU 支持 Early-Z：在片元着色前就剔除被遮挡的片元，节省填充率。Z-fighting 源于深度精度不足（24 位定点精度随距离下降），常见解法：调整近远平面、反向 Z、Polygon Offset。",
+    "followUps": [
+      "Early-Z 在什么情况下会失效？",
+      "为什么近平面设置得越近，远处 Z-fighting 越严重？"
+    ],
+    "relatedProjects": [
+      "地形渲染中的 Z-fighting 修复"
+    ],
+    "tags": ["深度", "渲染管线", "基础"],
+    "sources": ["《Real-Time Rendering》第 4 版", "Unity 官方手册：深度测试"]
+  },
+  {
+    "id": "shader-003",
+    "category": "Shader 与渲染",
+    "title": "法线贴图的原理是什么？为什么需要切线空间？",
+    "difficulty": "中等",
+    "shortAnswer": "法线贴图在切线空间存储表面细节法线，着色时通过 TBN 矩阵变换到世界空间参与光照。切线空间与 UV 对齐，贴图不依赖物体朝向，可复用于任意表面。",
+    "keyPoints": [
+      "切线空间与 UV 对齐",
+      "TBN 矩阵（切线/副切线/法线）",
+      "采样后变换到世界空间",
+      "物体空间法线贴图不可复用",
+      "压缩友好：蓝绿色偏"
+    ],
+    "explanation": "物体空间法线贴图记录了世界朝向，物体旋转或缩放后不适用且 RGB 压缩质量差；切线空间以表面 UV 方向为基构建正交基，纹理与朝向解耦。TBN 由顶点切线、法线与叉积副切线组成，细节法线经 TBN 变换后参与光照计算。法线贴图整体偏蓝是因为切线空间法线默认朝上（Z 轴）。",
+    "followUps": [
+      "TBN 矩阵在顶点与片元阶段如何传递？",
+      "顶点法线与切线是如何烘焙出来的？"
+    ],
+    "relatedProjects": [
+      "PBR 材质中的法线贴图管线"
+    ],
+    "tags": ["法线贴图", "切线空间", "着色"],
+    "sources": ["LearnOpenGL：Normal Mapping", "《Unity Shader 入门精要》"]
+  },
+  {
+    "id": "unity-003",
+    "category": "Unity",
+    "title": "URP 中 Scriptable Renderer Feature 是什么？",
+    "difficulty": "中等",
+    "shortAnswer": "Renderer Feature 是 URP 向渲染管线注入自定义 Pass 的扩展点，挂在 URP Renderer Data 上，可在指定注入点执行自定义渲染逻辑，实现描边、X-Ray、遮挡显示等效果，按层或相机配置启用。",
+    "keyPoints": [
+      "注入自定义 Pass",
+      "挂在 URP Renderer Data",
+      "Render Objects / Blit 等内置 Feature",
+      "Layer Mask 与渲染队列控制",
+      "与自定义 RenderPipeline 的区别"
+    ],
+    "explanation": "URP 通过 Renderer Feature 让开发者在不替换整个 RenderPipeline 的前提下扩展渲染流程：内置的 Render Objects Feature 可对指定 Layer 插入一次带自定义 Material 的绘制（如描边、替换着色），ScriptableRendererFeature 允许完全自定义 Pass 逻辑（如全屏后处理、Stencil 效果）。相比完整自定义 RenderPipeline，Feature 粒度小、按项目配置，维护成本低。",
+    "followUps": [
+      "如何在 Renderer Feature 中实现全屏后处理？",
+      "Render Objects Feature 的注入点有哪些？"
+    ],
+    "relatedProjects": [
+      "URP 描边/受击闪白效果"
+    ],
+    "tags": ["URP", "渲染管线", "Unity"],
+    "sources": ["Unity 官方手册：URP Renderer Feature", "Unity 官方文档：ScriptableRendererFeature"]
+  },
+  {
+    "id": "perf-003",
+    "category": "性能优化",
+    "title": "什么是 Overdraw？如何测量和优化？",
+    "difficulty": "中等",
+    "shortAnswer": "Overdraw 指同一像素被重复绘制多次，浪费 GPU 填充率。测量用 Frame Debugger 的 Overdraw 视图与 GPU Profiler；优化：减少半透明层叠、限制粒子、缩小后处理链、遮挡剔除。",
+    "keyPoints": [
+      "填充率（fillrate）",
+      "半透明叠加无法早退",
+      "Overdraw 视图 / Frame Debugger",
+      "粒子与后处理是重灾区",
+      "移动端影响更大"
+    ],
+    "explanation": "不透明物体被遮挡的片元可被 Early-Z 剔除，但半透明物体需要混合、必须全部绘制，因此 Overdraw 主要来自半透明层叠、粒子与全屏后处理。移动端填充率受限，Overdraw 是常见瓶颈。优化顺序：用 Frame Debugger 先定位重绘区域，再合并半透明层、降低粒子数量与尺寸、后处理降分辨率、必要时用深度预处理减少无效绘制。",
+    "followUps": [
+      "为什么半透明物体的 Overdraw 比不透明更严重？",
+      "如何用 Frame Debugger 定位 Overdraw 区域？"
+    ],
+    "relatedProjects": [
+      "移动端特效 Overdraw 优化"
+    ],
+    "tags": ["性能", "Overdraw", "移动端"],
+    "sources": ["Unity 官方手册：Optimizing graphics performance", "Unity 官方手册：Frame Debugger"]
+  }
+]
